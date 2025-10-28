@@ -8,6 +8,14 @@ import numpy as np
 import ta
 from typing import Tuple, Optional
 import warnings
+import logging
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 
 def load_data(file_path: str) -> pd.DataFrame:
@@ -201,7 +209,8 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def normalize_features(df: pd.DataFrame, method: str = 'zscore',
-                       window: int = 100, columns: Optional[list] = None) -> pd.DataFrame:
+                       window: int = 100, columns: Optional[list] = None,
+                       clip_outliers: bool = True, clip_std: float = 5.0) -> pd.DataFrame:
     """
     Normalize features using rolling z-score or min-max scaling.
 
@@ -213,11 +222,16 @@ def normalize_features(df: pd.DataFrame, method: str = 'zscore',
         window: Rolling window size for z-score normalization
         columns: List of columns to normalize. If None, normalize all numeric columns
                  except index
+        clip_outliers: Whether to clip extreme outliers (only for zscore method)
+        clip_std: Number of standard deviations to clip at (default: 5.0)
 
     Returns:
         DataFrame with normalized features
     """
     df = df.copy()
+
+    # Robust epsilon value for numerical stability
+    eps = np.finfo(float).eps * 100
 
     # Determine columns to normalize
     if columns is None:
@@ -230,10 +244,15 @@ def normalize_features(df: pd.DataFrame, method: str = 'zscore',
             rolling_mean = df[col].rolling(window=window, min_periods=window).mean()
             rolling_std = df[col].rolling(window=window, min_periods=window).std()
 
-            # Avoid division by zero
-            rolling_std = rolling_std.replace(0, 1e-8)
+            # Avoid division by zero with robust epsilon
+            rolling_std = rolling_std.replace(0, eps)
+            rolling_std = rolling_std.fillna(eps)
 
             df[f'{col}_norm'] = (df[col] - rolling_mean) / rolling_std
+
+            # Clip extreme outliers to prevent overflow and improve stability
+            if clip_outliers:
+                df[f'{col}_norm'] = df[f'{col}_norm'].clip(-clip_std, clip_std)
 
     elif method == 'minmax':
         # Min-max scaling to [0, 1]
@@ -241,9 +260,10 @@ def normalize_features(df: pd.DataFrame, method: str = 'zscore',
             rolling_min = df[col].rolling(window=window, min_periods=window).min()
             rolling_max = df[col].rolling(window=window, min_periods=window).max()
 
-            # Avoid division by zero
+            # Avoid division by zero with robust epsilon
             range_val = rolling_max - rolling_min
-            range_val = range_val.replace(0, 1e-8)
+            range_val = range_val.replace(0, eps)
+            range_val = range_val.fillna(eps)
 
             df[f'{col}_norm'] = (df[col] - rolling_min) / range_val
 
@@ -292,17 +312,17 @@ def split_data(df: pd.DataFrame, train_ratio: float = 0.6,
     test_df = df.iloc[val_end:].copy()
 
     # Log split information
-    print(f"Data split:")
-    print(f"  Total samples: {n}")
-    print(f"  Train: {len(train_df)} samples ({len(train_df)/n*100:.1f}%)")
-    print(f"  Val:   {len(val_df)} samples ({len(val_df)/n*100:.1f}%)")
-    print(f"  Test:  {len(test_df)} samples ({len(test_df)/n*100:.1f}%)")
+    logger.info("Data split:")
+    logger.info(f"  Total samples: {n}")
+    logger.info(f"  Train: {len(train_df)} samples ({len(train_df)/n*100:.1f}%)")
+    logger.info(f"  Val:   {len(val_df)} samples ({len(val_df)/n*100:.1f}%)")
+    logger.info(f"  Test:  {len(test_df)} samples ({len(test_df)/n*100:.1f}%)")
 
     if hasattr(df.index, 'min'):
-        print(f"\nTemporal ranges:")
-        print(f"  Train: {train_df.index.min()} to {train_df.index.max()}")
-        print(f"  Val:   {val_df.index.min()} to {val_df.index.max()}")
-        print(f"  Test:  {test_df.index.min()} to {test_df.index.max()}")
+        logger.info("Temporal ranges:")
+        logger.info(f"  Train: {train_df.index.min()} to {train_df.index.max()}")
+        logger.info(f"  Val:   {val_df.index.min()} to {val_df.index.max()}")
+        logger.info(f"  Test:  {test_df.index.min()} to {test_df.index.max()}")
 
     return train_df, val_df, test_df
 
@@ -337,37 +357,37 @@ def prepare_data_pipeline(file_path: str,
     Returns:
         Tuple of (train_df, val_df, test_df)
     """
-    print("="*60)
-    print("Data Preparation Pipeline")
-    print("="*60)
+    logger.info("="*60)
+    logger.info("Data Preparation Pipeline")
+    logger.info("="*60)
 
     # Step 1: Load data
-    print("\n[1/4] Loading data...")
+    logger.info("[1/4] Loading data...")
     df = load_data(file_path)
-    print(f"  Loaded {len(df)} samples")
+    logger.info(f"  Loaded {len(df)} samples")
 
     # Step 2: Add technical indicators
     if add_indicators:
-        print("\n[2/4] Adding technical indicators...")
+        logger.info("[2/4] Adding technical indicators...")
         df = add_technical_indicators(df)
-        print(f"  Added {len(df.columns) - 5} features (total: {len(df.columns)} columns)")
+        logger.info(f"  Added {len(df.columns) - 5} features (total: {len(df.columns)} columns)")
     else:
-        print("\n[2/4] Skipping technical indicators")
+        logger.info("[2/4] Skipping technical indicators")
 
     # Step 3: Normalize
     if normalize:
-        print(f"\n[3/4] Normalizing features (method: {normalize_method}, window: {normalize_window})...")
+        logger.info(f"[3/4] Normalizing features (method: {normalize_method}, window: {normalize_window})...")
         df = normalize_features(df, method=normalize_method, window=normalize_window)
-        print(f"  Normalized features")
+        logger.info("  Normalized features")
     else:
-        print("\n[3/4] Skipping normalization")
+        logger.info("[3/4] Skipping normalization")
 
     # Step 4: Split
-    print("\n[4/4] Splitting data...")
+    logger.info("[4/4] Splitting data...")
     train_df, val_df, test_df = split_data(df, train_ratio, val_ratio)
 
-    print("\n" + "="*60)
-    print("Pipeline complete!")
-    print("="*60)
+    logger.info("="*60)
+    logger.info("Pipeline complete!")
+    logger.info("="*60)
 
     return train_df, val_df, test_df
