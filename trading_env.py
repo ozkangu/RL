@@ -83,16 +83,17 @@ class BtcUsdTradingEnv(gym.Env):
         # Observation is a window of historical market data
         # Shape: (window_size, n_features)
         # Each row contains: OHLCV + technical indicators
+        # Note: Using reasonable bounds instead of -inf/inf for better NN training
         self.observation_space = spaces.Box(
-            low=-np.inf,
-            high=np.inf,
+            low=-10.0,  # Reasonable bound for normalized features
+            high=10.0,
             shape=(self.window_size, self.n_features),
             dtype=np.float32
         )
 
         # Initialize state variables (will be set in reset())
         self.current_step = None
-        self.cash = None
+        self.invested_capital = None  # Capital invested in position (renamed from 'cash' for clarity)
         self.position = None  # 0: no position, 1: long position
         self.position_price = None  # Entry price when position was opened
         self.total_reward = None
@@ -107,13 +108,31 @@ class BtcUsdTradingEnv(gym.Env):
 
         Returns:
             Numpy array of shape (window_size, n_features) containing market data
+
+        Raises:
+            IndexError: If not enough data available for observation window
         """
         # Get the window of data ending at current_step
         start_idx = self.current_step
         end_idx = self.current_step + self.window_size
 
+        # CRITICAL FIX: Check bounds to prevent index out of range errors
+        if end_idx > len(self.df):
+            raise IndexError(
+                f"Insufficient data for observation. "
+                f"Requested indices [{start_idx}:{end_idx}], "
+                f"but DataFrame only has {len(self.df)} rows."
+            )
+
         # Extract feature values
         obs = self.df[self.feature_columns].iloc[start_idx:end_idx].values
+
+        # Verify shape
+        if obs.shape[0] != self.window_size:
+            raise ValueError(
+                f"Observation shape mismatch. Expected {self.window_size} rows, "
+                f"got {obs.shape[0]} rows."
+            )
 
         # Convert to float32 for neural network compatibility
         return obs.astype(np.float32)
@@ -122,20 +141,24 @@ class BtcUsdTradingEnv(gym.Env):
         """
         Calculate current portfolio value.
 
+        IMPORTANT: When we have a position, self.invested_capital represents
+        the capital that was used to buy BTC at self.position_price.
+        We calculate current value by seeing what that BTC is worth now.
+
         Args:
             current_price: Current market price
 
         Returns:
-            Total portfolio value (cash + position value)
+            Total portfolio value
         """
         if self.position == 0:
-            # No position, portfolio is just cash
-            return self.cash
+            # No position, portfolio value is just our capital
+            return self.invested_capital
         else:
-            # Has position, value is cash + position value
-            # Calculate how much BTC we have
-            btc_amount = self.cash / self.position_price
-            # Current value of that BTC
+            # Has position: Calculate current value of our BTC holdings
+            # Our invested_capital was used to buy BTC at position_price
+            btc_amount = self.invested_capital / self.position_price
+            # Current value of that BTC at market price
             position_value = btc_amount * current_price
             return position_value
 
@@ -160,7 +183,7 @@ class BtcUsdTradingEnv(gym.Env):
 
         # Reset state variables
         self.current_step = 0
-        self.cash = self.initial_cash
+        self.invested_capital = self.initial_cash
         self.position = 0  # Start with no position
         self.position_price = 0.0
         self.total_reward = 0.0
@@ -172,7 +195,7 @@ class BtcUsdTradingEnv(gym.Env):
         # Info dictionary
         info = {
             'step': self.current_step,
-            'cash': self.cash,
+            'cash': self.invested_capital,
             'position': self.position,
             'portfolio_value': self.initial_cash
         }
@@ -214,14 +237,14 @@ class BtcUsdTradingEnv(gym.Env):
                 execution_price = current_price * (1 + self.slippage)
 
                 # Apply transaction cost
-                # Cost is deducted from cash available for position
+                # Cost is deducted from capital available for position
                 cost_factor = 1 - self.transaction_cost
-                effective_cash = self.cash * cost_factor
+                effective_capital = self.invested_capital * cost_factor
 
                 # Open long position
                 self.position = 1
                 self.position_price = execution_price
-                self.cash = effective_cash  # Cash is now "invested" but we track it
+                self.invested_capital = effective_capital
 
                 transaction_occurred = True
                 logger.debug(f"BUY at ${execution_price:,.2f} (slippage: {self.slippage:.4f}, cost: {self.transaction_cost:.4f})")
@@ -232,14 +255,14 @@ class BtcUsdTradingEnv(gym.Env):
                 execution_price = current_price * (1 - self.slippage)
 
                 # Calculate BTC amount we have
-                btc_amount = self.cash / self.position_price
+                btc_amount = self.invested_capital / self.position_price
 
-                # Sell BTC and get cash back
-                cash_from_sale = btc_amount * execution_price
+                # Sell BTC and get capital back
+                capital_from_sale = btc_amount * execution_price
 
                 # Apply transaction cost
                 cost_factor = 1 - self.transaction_cost
-                self.cash = cash_from_sale * cost_factor
+                self.invested_capital = capital_from_sale * cost_factor
 
                 # Close position
                 self.position = 0
@@ -254,8 +277,11 @@ class BtcUsdTradingEnv(gym.Env):
         portfolio_value_after = self._calculate_portfolio_value(current_price)
 
         # Calculate reward (log return of portfolio value)
+        # IMPORTANT FIX: Added clipping to prevent extreme rewards
         if portfolio_value_before > 0:
-            reward = np.log(portfolio_value_after / portfolio_value_before)
+            raw_reward = np.log(portfolio_value_after / portfolio_value_before)
+            # Clip to reasonable range to prevent exploding/vanishing gradients
+            reward = np.clip(raw_reward, -0.1, 0.1)
         else:
             reward = 0.0  # Avoid log(0)
 
@@ -288,7 +314,7 @@ class BtcUsdTradingEnv(gym.Env):
             'action': action,
             'transaction_occurred': transaction_occurred,
             'current_price': current_price,
-            'cash': self.cash,
+            'cash': self.invested_capital,
             'position': self.position,
             'position_price': self.position_price,
             'portfolio_value': portfolio_value_after,
@@ -314,7 +340,7 @@ class BtcUsdTradingEnv(gym.Env):
         print(f"Step: {self.current_step}/{self.max_steps}")
         print(f"Current Price: ${current_price:,.2f}")
         print(f"Portfolio Value: ${portfolio_value:,.2f}")
-        print(f"Cash: ${self.cash:,.2f}")
+        print(f"Invested Capital: ${self.invested_capital:,.2f}")
         print(f"Position: {'Long' if self.position == 1 else 'None'}")
         if self.position == 1:
             print(f"Entry Price: ${self.position_price:,.2f}")

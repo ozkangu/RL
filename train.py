@@ -15,7 +15,12 @@ from typing import Dict, Any
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback, CallbackList
+from stable_baselines3.common.callbacks import (
+    CheckpointCallback,
+    EvalCallback,
+    CallbackList,
+    StopTrainingOnNoModelImprovement
+)
 from stable_baselines3.common.monitor import Monitor
 
 from data_manager import prepare_data_pipeline
@@ -81,6 +86,28 @@ def set_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = False
 
     logger.info(f"Random seed set to {seed}")
+
+
+def linear_schedule(initial_value: float):
+    """
+    Linear learning rate schedule.
+
+    IMPORTANT FIX: Adaptive learning rate schedule for better convergence.
+
+    Args:
+        initial_value: Initial learning rate
+
+    Returns:
+        Schedule function that takes progress_remaining (1.0 to 0.0) and returns LR
+    """
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0 (end).
+        LR will decrease proportionally.
+        """
+        return progress_remaining * initial_value
+
+    return func
 
 
 def make_env(df, env_config: Dict[str, Any], rank: int = 0, seed: int = 0):
@@ -189,10 +216,24 @@ def train(training_config_path: str = "configs/training.yaml",
     logger.info("\n[4/7] Initializing PPO agent...")
     ppo_config = training_config['ppo']
 
+    # IMPORTANT FIX: Linear learning rate schedule for better convergence
+    use_lr_schedule = training_config['training'].get('use_lr_schedule', True)
+    if use_lr_schedule:
+        learning_rate = linear_schedule(ppo_config['learning_rate'])
+        logger.info(f"Using linear LR schedule (initial: {ppo_config['learning_rate']})")
+    else:
+        learning_rate = ppo_config['learning_rate']
+        logger.info(f"Using fixed LR: {ppo_config['learning_rate']}")
+
+    # NICE-TO-HAVE FIX: Policy architecture from config
+    policy_kwargs = training_config.get('policy_kwargs', {
+        'net_arch': [dict(pi=[64, 64], vf=[64, 64])]
+    })
+
     model = PPO(
         policy=training_config['algorithm']['policy'],
         env=env,
-        learning_rate=ppo_config['learning_rate'],
+        learning_rate=learning_rate,
         n_steps=ppo_config['n_steps'],
         batch_size=ppo_config['batch_size'],
         n_epochs=ppo_config['n_epochs'],
@@ -202,17 +243,19 @@ def train(training_config_path: str = "configs/training.yaml",
         ent_coef=ppo_config['ent_coef'],
         vf_coef=ppo_config['vf_coef'],
         max_grad_norm=ppo_config['max_grad_norm'],
+        policy_kwargs=policy_kwargs,
         verbose=training_config['logging']['verbose'],
         tensorboard_log=training_config['logging']['tensorboard_log'],
         seed=seed
     )
 
     logger.info("PPO agent initialized with hyperparameters:")
-    logger.info(f"  Learning rate: {ppo_config['learning_rate']}")
+    logger.info(f"  Learning rate: {ppo_config['learning_rate']} (schedule: {use_lr_schedule})")
     logger.info(f"  n_steps: {ppo_config['n_steps']}")
     logger.info(f"  batch_size: {ppo_config['batch_size']}")
     logger.info(f"  gamma: {ppo_config['gamma']}")
     logger.info(f"  ent_coef: {ppo_config['ent_coef']}")
+    logger.info(f"  policy_kwargs: {policy_kwargs}")
 
     # PBI-022: Setup callbacks for checkpointing
     logger.info("\n[5/7] Setting up callbacks...")
@@ -230,6 +273,14 @@ def train(training_config_path: str = "configs/training.yaml",
         save_vecnormalize=False
     )
 
+    # IMPORTANT FIX: Early stopping callback
+    # Stops training if no improvement in eval reward for N evaluations
+    early_stop_callback = StopTrainingOnNoModelImprovement(
+        max_no_improvement_evals=training_config['training'].get('early_stop_patience', 5),
+        min_evals=training_config['training'].get('early_stop_min_evals', 10),
+        verbose=1
+    )
+
     # Evaluation callback - evaluates and saves best model
     eval_callback = EvalCallback(
         eval_env,
@@ -238,7 +289,8 @@ def train(training_config_path: str = "configs/training.yaml",
         eval_freq=training_config['checkpoint']['save_freq'],
         deterministic=True,
         render=False,
-        n_eval_episodes=5
+        n_eval_episodes=5,
+        callback_after_eval=early_stop_callback  # NEW: Early stopping
     )
 
     # Combine callbacks
@@ -246,6 +298,7 @@ def train(training_config_path: str = "configs/training.yaml",
 
     logger.info(f"Checkpoints will be saved to: {checkpoint_dir}")
     logger.info(f"Save frequency: every {training_config['checkpoint']['save_freq']} steps")
+    logger.info(f"Early stopping: patience={training_config['training'].get('early_stop_patience', 5)} evals")
 
     # PBI-021: Training loop
     logger.info("\n[6/7] Starting training...")
