@@ -94,8 +94,15 @@ python train.py --config configs/training.yaml
 ### 6. Evaluate Performance
 
 ```bash
-python evaluate.py --model ckpts/best_model.zip --config configs/env.yaml
+python evaluate.py --model ckpts/best_model/best_model.zip
 ```
+
+This will:
+- Run the RL agent on test data
+- Compare against Buy & Hold and RSI benchmarks
+- Calculate comprehensive metrics (Sharpe, Sortino, Drawdown, etc.)
+- Generate visualizations (price charts, portfolio curves, drawdown plots)
+- Export trade blotters and comparison tables to `artifacts/evaluation/`
 
 ---
 
@@ -221,21 +228,21 @@ pytest test_data_manager_pytest.py::TestLoadData -v
 - [x] Epic 1.2: Data management pipeline
 - [x] Code review fixes and A+ quality improvements
 
-### 🔄 Phase 2: Trading Environment (IN PROGRESS)
-- [ ] Epic 2.1: Gymnasium-compatible environment
-- [ ] Epic 2.2: Step and reset logic
-- [ ] Epic 2.3: Environment testing
+### ✅ Phase 2: Trading Environment (COMPLETED)
+- [x] Epic 2.1: Gymnasium-compatible environment
+- [x] Epic 2.2: Step and reset logic
+- [x] Epic 2.3: Environment testing
 
-### 📅 Phase 3: Agent Training
-- [ ] Epic 3.1: Training pipeline
-- [ ] Epic 3.2: Checkpointing and monitoring
-- [ ] Epic 3.3: First training run
+### ✅ Phase 3: Agent Training (COMPLETED)
+- [x] Epic 3.1: Training pipeline
+- [x] Epic 3.2: Checkpointing and monitoring
+- [x] Epic 3.3: First training run preparation
 
-### 📅 Phase 4: Evaluation
-- [ ] Epic 4.1: Evaluation script
-- [ ] Epic 4.2: Benchmarks (Buy & Hold, RSI)
-- [ ] Epic 4.3: Performance metrics
-- [ ] Epic 4.4: Visualization
+### ✅ Phase 4: Evaluation (COMPLETED)
+- [x] Epic 4.1: Evaluation script (model loading, episode rollout, trade blotter)
+- [x] Epic 4.2: Benchmarks (Buy & Hold, RSI strategy)
+- [x] Epic 4.3: Performance metrics (Sharpe, Sortino, Calmar, Drawdown, Win Rate)
+- [x] Epic 4.4: Visualization (price charts, portfolio comparison, drawdown plots)
 
 ---
 
