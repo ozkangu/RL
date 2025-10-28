@@ -46,9 +46,9 @@ RL/
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
-### 1. Installation
+### Step 1: Installation
 
 ```bash
 # Clone the repository
@@ -63,46 +63,356 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Prepare Data
+**What gets installed:**
+- `gymnasium` - RL environment framework
+- `stable-baselines3` - PPO algorithm
+- `ccxt` - Binance API client
+- `pandas`, `numpy` - Data processing
+- `ta` - Technical indicators
+- `matplotlib`, `seaborn` - Visualization
+- And more... (see `requirements.txt`)
 
-Place your BTC/USD OHLCV data in `data/btcusd_1h.csv` with the following format:
+---
+
+### Step 2: Fetch Historical Data from Binance
+
+#### Option A: With API Keys (Recommended)
+
+**Get Binance API keys:**
+1. Visit [Binance API Management](https://www.binance.com/en/my/settings/api-management)
+2. Create a new API key
+3. **Important:** Only enable "Enable Reading" (disable trading/withdrawals!)
+4. Copy your API Key and Secret
+
+**Configure credentials:**
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env and add your API keys
+nano .env  # or use your favorite editor
+```
+
+Your `.env` should contain:
+```bash
+BINANCE_API_KEY=your_actual_api_key_here
+BINANCE_API_SECRET=your_actual_secret_key_here
+```
+
+**Fetch data:**
+```bash
+# Fetch last 365 days of BTC/USDT 1-hour data
+python fetch_data.py
+
+# Or specify custom parameters
+python fetch_data.py --days 180
+python fetch_data.py --start-date 2023-01-01 --end-date 2024-01-01
+python fetch_data.py --symbol ETH/USDT --timeframe 4h
+```
+
+#### Option B: Without API Keys (Limited)
+
+```bash
+# Fetch recent data using public API (last 30 days max)
+python fetch_data.py --no-api-key --days 30
+```
+
+#### Option C: Manual Data
+
+Place your own BTC/USD OHLCV CSV file in `data/btcusdt_1h.csv`:
 
 ```csv
 timestamp,open,high,low,close,volume
-2023-01-01 00:00:00,30000.0,30100.0,29900.0,30050.0,1000000
+2023-01-01 00:00:00+00:00,30000.0,30100.0,29900.0,30050.0,1000000
+2023-01-01 01:00:00+00:00,30050.0,30150.0,30000.0,30100.0,1100000
 ...
 ```
 
-### 3. Validate Configuration
+**Expected output:** `data/btcusdt_1h.csv` with 2000+ rows (minimum)
+
+📖 **Detailed guide:** See [DATA_FETCHING.md](DATA_FETCHING.md)
+
+---
+
+### Step 3: Verify Data
 
 ```bash
+# Check if data was fetched correctly
+head data/btcusdt_1h.csv
+
+# Count rows (should be 2000+ for good training)
+wc -l data/btcusdt_1h.csv
+
+# Verify data loads correctly
+python -c "from data_manager import load_data; df = load_data('data/btcusdt_1h.csv'); print(f'✅ Loaded {len(df)} rows'); print(df.head())"
+```
+
+---
+
+### Step 4: Validate Configuration
+
+```bash
+# Validate all config files
 python config_validator.py
 ```
 
-### 4. Run Tests
-
-```bash
-pytest test_data_manager_pytest.py -v
+**Expected output:**
+```
+✓ Environment config validation passed
+✓ Training config validation passed
+✓ Features config validation passed
+✓ All configurations are valid!
 ```
 
-### 5. Train the Agent
+If you get errors, check your config files in `configs/` directory.
+
+---
+
+### Step 5: Run Tests (Optional but Recommended)
 
 ```bash
-python train.py --config configs/training.yaml
+# Run all tests
+pytest test_data_manager_pytest.py test_trading_env_pytest.py -v
+
+# Or run specific test suites
+pytest test_data_manager_pytest.py -v          # Data pipeline tests
+pytest test_trading_env_pytest.py -v           # Environment tests
+
+# With coverage report
+pytest --cov=data_manager --cov=trading_env --cov-report=html
 ```
 
-### 6. Evaluate Performance
+---
+
+### Step 6: Train the Agent
+
+#### Quick Test Training (50k timesteps, ~5-10 minutes)
+
+First, edit `configs/training.yaml`:
+```yaml
+training:
+  total_timesteps: 50000  # Reduced for testing
+```
+
+Then run:
+```bash
+python train.py
+```
+
+#### Full Training (200k timesteps, ~2-4 hours on CPU)
+
+Use default config:
+```bash
+python train.py
+```
+
+Or specify custom configs:
+```bash
+python train.py \
+  --training-config configs/training.yaml \
+  --env-config configs/env.yaml \
+  --features-config configs/features.yaml
+```
+
+**What happens during training:**
+- Data is loaded and split (60% train, 20% val, 20% test)
+- PPO agent is initialized
+- Training loop runs with progress bar
+- Checkpoints saved every 10,000 steps to `ckpts/`
+- Best model saved to `ckpts/best_model/`
+- TensorBoard logs saved to `artifacts/tensorboard/`
+
+**Monitor training with TensorBoard:**
+```bash
+# In a separate terminal
+tensorboard --logdir artifacts/tensorboard/
+
+# Open browser: http://localhost:6006
+```
+
+**Training outputs:**
+```
+ckpts/
+├── rl_model_10000_steps.zip
+├── rl_model_20000_steps.zip
+├── ...
+├── final_model.zip
+└── best_model/
+    └── best_model.zip  # ← Use this for evaluation
+```
+
+📖 **Detailed guide:** See [TRAINING_GUIDE.md](TRAINING_GUIDE.md)
+
+---
+
+### Step 7: Evaluate Performance
 
 ```bash
+# Evaluate the best model
 python evaluate.py --model ckpts/best_model/best_model.zip
+
+# Or evaluate a specific checkpoint
+python evaluate.py --model ckpts/rl_model_50000_steps.zip
+
+# Custom output directory
+python evaluate.py \
+  --model ckpts/best_model/best_model.zip \
+  --output-dir my_evaluation_results
 ```
 
-This will:
-- Run the RL agent on test data
-- Compare against Buy & Hold and RSI benchmarks
-- Calculate comprehensive metrics (Sharpe, Sortino, Drawdown, etc.)
-- Generate visualizations (price charts, portfolio curves, drawdown plots)
-- Export trade blotters and comparison tables to `artifacts/evaluation/`
+**What happens during evaluation:**
+1. **Loads trained model** from checkpoint
+2. **Runs RL agent** on test data (20% of dataset)
+3. **Runs benchmarks:**
+   - Buy & Hold strategy
+   - RSI(30/70) momentum strategy
+4. **Calculates metrics:**
+   - Total Return, Sharpe Ratio, Sortino Ratio
+   - Max Drawdown, Calmar Ratio
+   - Win Rate, Average Trade P&L
+   - Turnover
+5. **Generates visualizations:**
+   - Price chart with buy/sell markers
+   - Portfolio value comparison (all strategies)
+   - Drawdown plots
+6. **Exports results:**
+   - Comparison table (CSV)
+   - Trade blotters (CSV)
+   - Charts (PNG, 300 DPI)
+
+**Evaluation outputs:**
+```
+artifacts/evaluation/
+├── comparison_table.csv           # Metrics comparison
+├── trade_blotter_rl_agent.csv     # RL agent trades
+├── trade_blotter_buy_and_hold.csv
+├── trade_blotter_rsi_strategy.csv
+├── rl_agent_trades.png            # Price + trades chart
+├── portfolio_comparison.png       # All strategies
+├── rl_agent_drawdown.png
+└── buy_hold_drawdown.png
+```
+
+**Expected console output:**
+```
+======================================================================
+PERFORMANCE COMPARISON
+======================================================================
+ Strategy      Total Return (%)  Sharpe Ratio  Max Drawdown (%)  Win Rate (%)
+ RL Agent             12.50           1.45          -8.32            55.00
+ Buy & Hold            8.20           0.98         -12.45            50.00
+ RSI Strategy          5.67           0.75         -15.23            48.00
+```
+
+---
+
+### Step 8: Analyze Results
+
+```bash
+# View comparison table
+cat artifacts/evaluation/comparison_table.csv
+
+# View RL agent trades
+head artifacts/evaluation/trade_blotter_rl_agent.csv
+
+# Open visualizations
+open artifacts/evaluation/rl_agent_trades.png         # macOS
+xdg-open artifacts/evaluation/portfolio_comparison.png # Linux
+```
+
+---
+
+## 📋 Common Commands Reference
+
+### Data Fetching
+```bash
+# Fetch last year of data
+python fetch_data.py --days 365
+
+# Fetch specific date range
+python fetch_data.py --start-date 2023-01-01 --end-date 2024-01-01
+
+# Fetch different symbol
+python fetch_data.py --symbol ETH/USDT --timeframe 4h
+
+# Without API keys
+python fetch_data.py --no-api-key --days 30
+```
+
+### Training
+```bash
+# Standard training
+python train.py
+
+# Quick test (edit config first: total_timesteps: 50000)
+python train.py
+
+# Monitor with TensorBoard
+tensorboard --logdir artifacts/tensorboard/
+```
+
+### Evaluation
+```bash
+# Evaluate best model
+python evaluate.py --model ckpts/best_model/best_model.zip
+
+# Evaluate specific checkpoint
+python evaluate.py --model ckpts/rl_model_100000_steps.zip
+```
+
+### Testing & Validation
+```bash
+# Validate configs
+python config_validator.py
+
+# Run tests
+pytest -v
+
+# Run with coverage
+pytest --cov --cov-report=html
+```
+
+---
+
+## ⚙️ Configuration
+
+All parameters can be adjusted in YAML files under `configs/`:
+
+### `configs/env.yaml` - Environment Settings
+```yaml
+data:
+  data_file: "data/btcusdt_1h.csv"  # Update this!
+
+environment:
+  window_size: 24        # Historical bars in observation
+  initial_cash: 10000.0  # Starting capital
+  transaction_cost: 0.001  # 0.1% per trade
+  slippage: 0.0005       # 0.05% slippage
+```
+
+### `configs/training.yaml` - Training Settings
+```yaml
+training:
+  total_timesteps: 200000  # Total training steps
+  seed: 42                 # Random seed
+
+ppo:
+  learning_rate: 0.0003
+  n_steps: 2048
+  batch_size: 64
+  gamma: 0.99
+```
+
+### `configs/features.yaml` - Feature Engineering
+```yaml
+indicators:
+  rsi:
+    enabled: true
+    period: 14
+  macd:
+    enabled: true
+  # ... more indicators
+```
 
 ---
 
