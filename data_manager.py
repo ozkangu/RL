@@ -73,6 +73,36 @@ def load_data(file_path: str) -> pd.DataFrame:
     if dropped > 0:
         warnings.warn(f"Dropped {dropped} rows with missing OHLCV values")
 
+    # OHLCV data validation
+    # Check for negative prices or volume
+    negative_prices = (df[['open', 'high', 'low', 'close']] < 0).any(axis=1)
+    if negative_prices.sum() > 0:
+        warnings.warn(f"Found {negative_prices.sum()} rows with negative prices, removing them")
+        df = df[~negative_prices]
+
+    # Check high >= low
+    invalid_hl = df['high'] < df['low']
+    if invalid_hl.sum() > 0:
+        warnings.warn(f"Found {invalid_hl.sum()} rows where high < low, removing them")
+        df = df[~invalid_hl]
+
+    # Check close is within [low, high]
+    invalid_close = (df['close'] > df['high']) | (df['close'] < df['low'])
+    if invalid_close.sum() > 0:
+        warnings.warn(f"Found {invalid_close.sum()} rows where close is outside [low, high], removing them")
+        df = df[~invalid_close]
+
+    # Check open is within reasonable range [low, high] (with small tolerance for gaps)
+    invalid_open = (df['open'] > df['high'] * 1.1) | (df['open'] < df['low'] * 0.9)
+    if invalid_open.sum() > 0:
+        warnings.warn(f"Found {invalid_open.sum()} rows where open is far outside [low, high], removing them")
+        df = df[~invalid_open]
+
+    # Check for duplicate timestamps
+    if df.index.duplicated().sum() > 0:
+        warnings.warn(f"Found {df.index.duplicated().sum()} duplicate timestamps, keeping first occurrence")
+        df = df[~df.index.duplicated(keep='first')]
+
     return df
 
 
@@ -131,18 +161,29 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['bb_high'] = bollinger.bollinger_hband()
     df['bb_mid'] = bollinger.bollinger_mavg()
     df['bb_low'] = bollinger.bollinger_lband()
-    df['bb_width'] = (df['bb_high'] - df['bb_low']) / df['bb_mid']
+
+    # BB Width with division by zero protection
+    bb_mid_safe = df['bb_mid'].replace(0, np.nan)
+    df['bb_width'] = (df['bb_high'] - df['bb_low']) / bb_mid_safe
 
     # Additional useful features
     df['returns'] = df['close'].pct_change()
-    df['log_returns'] = np.log(df['close'] / df['close'].shift(1))
+
+    # Log returns with protection for zero/negative prices
+    close_ratio = df['close'] / df['close'].shift(1)
+    close_ratio = close_ratio.replace([np.inf, -np.inf], np.nan)
+    df['log_returns'] = np.log(close_ratio.clip(lower=1e-10))
 
     # Volume indicators
     df['volume_sma_20'] = df['volume'].rolling(window=20).mean()
-    df['volume_ratio'] = df['volume'] / df['volume_sma_20']
 
-    # Price position relative to BB
-    df['bb_position'] = (df['close'] - df['bb_low']) / (df['bb_high'] - df['bb_low'])
+    # Volume ratio with division by zero protection
+    volume_sma_safe = df['volume_sma_20'].replace(0, np.nan)
+    df['volume_ratio'] = df['volume'] / volume_sma_safe
+
+    # Price position relative to BB with division by zero protection
+    bb_range = (df['bb_high'] - df['bb_low']).replace(0, np.nan)
+    df['bb_position'] = (df['close'] - df['bb_low']) / bb_range
 
     # Forward-looking leakage check: all indicators use only past data
     # The 'ta' library ensures this by design, but we validate by checking

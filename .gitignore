@@ -1,0 +1,62 @@
+# Data files
+data/*
+!data/.gitkeep
+
+# Model checkpoints
+ckpts/*
+!ckpts/.gitkeep
+
+# Artifacts and logs
+artifacts/*
+!artifacts/.gitkeep
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Mac
+.DS_Store
+
+# TensorBoard
+artifacts/tensorboard/*
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local

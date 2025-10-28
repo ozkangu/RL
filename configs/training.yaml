@@ -14,7 +14,7 @@ ppo:
   gamma: 0.99  # Discount factor
   gae_lambda: 0.95  # Factor for trade-off of bias vs variance
   clip_range: 0.2  # Clipping parameter
-  ent_coef: 0.0  # Entropy coefficient
+  ent_coef: 0.01  # Entropy coefficient (encourages exploration)
   vf_coef: 0.5  # Value function coefficient
   max_grad_norm: 0.5  # Max gradient norm
 
