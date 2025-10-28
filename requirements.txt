@@ -6,6 +6,9 @@ stable-baselines3>=2.1.0
 pandas>=2.0.0
 numpy>=1.24.0
 
+# Exchange API
+ccxt>=4.0.0
+
 # Technical Analysis
 ta>=0.11.0
 
