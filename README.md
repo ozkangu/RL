@@ -46,7 +46,55 @@ RL/
 
 ---
 
-## 🚀 Getting Started
+## ⚡ Quick Start (Recommended)
+
+**Want to try it immediately?** Use our automated quickstart script:
+
+### Option 1: Demo Mode (2-5 minutes)
+Perfect for first-time users. Uses sample data and quick training.
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run demo
+python quickstart.py --mode demo
+```
+
+**What it does:**
+- ✅ Uses pre-generated sample BTC data (1000 hours)
+- ✅ Trains for 10,000 timesteps (~2-5 minutes)
+- ✅ Evaluates and generates reports
+- ✅ No API keys needed!
+
+**Outputs:**
+- Model: `ckpts/best_model/best_model.zip`
+- Evaluation: `artifacts/evaluation_demo/`
+- Charts & metrics ready to view!
+
+---
+
+### Option 2: Full Mode (3-5 hours)
+Complete production pipeline with real Binance data.
+
+```bash
+# Setup Binance API keys (optional but recommended)
+cp .env.example .env
+nano .env  # Add your API keys
+
+# Run full pipeline
+python quickstart.py --mode full
+```
+
+**What it does:**
+- ✅ Fetches 365 days of real BTC/USDT data from Binance
+- ✅ Trains for 200,000 timesteps (~2-4 hours)
+- ✅ Comprehensive evaluation with benchmarks
+- ✅ Production-quality results
+
+---
+
+## 🚀 Getting Started (Manual Steps)
 
 ### Step 1: Installation
 
