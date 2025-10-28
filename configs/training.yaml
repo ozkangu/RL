@@ -1,0 +1,42 @@
+# Training Configuration
+
+# Algorithm settings
+algorithm:
+  name: "PPO"  # Proximal Policy Optimization
+  policy: "MlpPolicy"  # Multi-layer perceptron policy
+
+# PPO Hyperparameters (simplified for MVP)
+ppo:
+  learning_rate: 0.0003
+  n_steps: 2048  # Number of steps to run per environment per update
+  batch_size: 64  # Minibatch size
+  n_epochs: 10  # Number of epochs when optimizing
+  gamma: 0.99  # Discount factor
+  gae_lambda: 0.95  # Factor for trade-off of bias vs variance
+  clip_range: 0.2  # Clipping parameter
+  ent_coef: 0.0  # Entropy coefficient
+  vf_coef: 0.5  # Value function coefficient
+  max_grad_norm: 0.5  # Max gradient norm
+
+# Training settings
+training:
+  total_timesteps: 200000  # Total timesteps to train (MVP: 200k)
+  n_envs: 1  # Number of parallel environments (MVP: 1, using DummyVecEnv)
+  seed: 42  # Random seed for reproducibility
+
+# Checkpointing
+checkpoint:
+  save_freq: 10000  # Save model every N steps
+  save_path: "ckpts/"  # Directory to save checkpoints
+  keep_best: true  # Keep best model based on mean reward
+
+# Logging
+logging:
+  log_interval: 10  # Log every N episodes
+  tensorboard_log: "artifacts/tensorboard/"  # TensorBoard log directory
+  verbose: 1  # Verbosity level (0: no output, 1: info, 2: debug)
+
+# Reproducibility
+reproducibility:
+  deterministic_pytorch: true
+  deterministic_numpy: true
