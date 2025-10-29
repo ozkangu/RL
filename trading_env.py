@@ -59,7 +59,19 @@ class BtcUsdTradingEnv(gym.Env):
         self.initial_cash = initial_cash
         self.transaction_cost = transaction_cost
         self.slippage = slippage
-        self.max_steps = max_steps if max_steps is not None else len(df) - window_size
+
+        # Calculate maximum possible steps based on data length
+        max_possible_steps = len(df) - window_size
+        if max_steps is not None:
+            # Ensure max_steps doesn't exceed data length
+            self.max_steps = min(max_steps, max_possible_steps)
+            if max_steps > max_possible_steps:
+                logger.warning(
+                    f"max_steps ({max_steps}) exceeds data length. "
+                    f"Setting to {max_possible_steps} (data_length - window_size)"
+                )
+        else:
+            self.max_steps = max_possible_steps
 
         # Feature columns (all numeric columns except timestamp)
         self.feature_columns = self.df.select_dtypes(include=[np.number]).columns.tolist()

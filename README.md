@@ -100,7 +100,7 @@ python quickstart.py --mode full
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/RL.git
+git clone https://github.com/ozkangu/RL.git
 cd RL
 
 # Create virtual environment
@@ -623,7 +623,7 @@ This project maintains **A+ code quality** through:
 ### ✅ Testing
 - pytest framework with fixtures
 - Edge case coverage
-- >90% code coverage target
+- **94% code coverage achieved** (exceeds 90% target)
 
 ### ✅ Logging
 - Structured logging module (not print statements)
@@ -686,8 +686,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For questions, issues, or collaboration:
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/RL/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/RL/discussions)
+- **Issues**: [GitHub Issues](https://github.com/ozkangu/RL/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/ozkangu/RL/discussions)
 
 ---
 

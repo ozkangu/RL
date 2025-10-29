@@ -20,7 +20,7 @@ ppo:
 
 # Training settings
 training:
-  total_timesteps: 200000  # Total timesteps to train (MVP: 200k)
+  total_timesteps: 50000  # Total timesteps to train (reduced for quick demo)
   n_envs: 1  # Number of parallel environments (MVP: 1, using DummyVecEnv)
   seed: 42  # Random seed for reproducibility
   use_lr_schedule: true  # Use linear learning rate schedule (decays from initial to 0)
