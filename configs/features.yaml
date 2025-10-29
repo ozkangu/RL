@@ -1,0 +1,63 @@
+# Feature Engineering Configuration
+
+# Base OHLCV features
+base_features:
+  - "open"
+  - "high"
+  - "low"
+  - "close"
+  - "volume"
+
+# Technical Indicators (simplified for MVP)
+indicators:
+
+  # Momentum Indicators
+  rsi:
+    enabled: true
+    period: 14
+
+  macd:
+    enabled: true
+    fast_period: 12
+    slow_period: 26
+    signal_period: 9
+
+  # Volatility Indicators
+  atr:
+    enabled: true
+    period: 14
+
+  bollinger_bands:
+    enabled: true
+    period: 20
+    std_dev: 2
+
+# Feature transformations
+transformations:
+
+  # Returns
+  log_returns:
+    enabled: true
+    periods: [1]  # 1-period log return
+
+  # Price changes
+  price_change:
+    enabled: false  # Disabled for MVP
+    periods: [1, 5, 10]
+
+# Feature selection
+feature_selection:
+  # List of features to include in observation space
+  # If empty, all features are included
+  include_features: []
+
+  # Features to explicitly exclude
+  exclude_features:
+    - "date"
+    - "timestamp"
+
+# Data quality
+data_quality:
+  remove_nan: true
+  forward_fill_limit: 3  # Max forward fill steps for missing data
+  check_future_leakage: true  # Ensure no look-ahead bias
