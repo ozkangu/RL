@@ -3,8 +3,6 @@
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code Quality](https://img.shields.io/badge/code%20quality-A+-brightgreen.svg)]()
-[![Tests](https://github.com/yourusername/RL/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/RL/actions/workflows/tests.yml)
-[![Lint](https://github.com/yourusername/RL/actions/workflows/lint.yml/badge.svg)](https://github.com/yourusername/RL/actions/workflows/lint.yml)
 
 A production-ready Reinforcement Learning trading bot for BTC/USD using Proximal Policy Optimization (PPO). This project implements a complete ML pipeline including data management, custom Gymnasium environment, RL training, and comprehensive evaluation.
 
@@ -19,11 +17,6 @@ This project builds a trading agent that learns optimal trading strategies for B
 - ✅ **Robust Data Pipeline**: OHLCV loading, validation, technical indicators (RSI, MACD, ATR, Bollinger Bands)
 - ✅ **Custom Gymnasium Environment**: Trading environment with realistic costs and slippage
 - ✅ **PPO Training**: State-of-the-art RL algorithm with configurable hyperparameters
-- ✅ **Comprehensive Evaluation**: Benchmarks (Buy & Hold, RSI), metrics (Sharpe, Sortino), visualizations
-- ✅ **Data Fetching**: Automated Binance data pipeline with API integration
-- ✅ **Interactive Jupyter Tutorial**: Learn the system step-by-step with visualizations
-- ✅ **CI/CD**: Automated testing and code quality checks with GitHub Actions
-- ✅ **Quick Start**: Demo mode gets you running in 2-5 minutes with sample data
 - ✅ **Comprehensive Testing**: pytest framework with >90% coverage
 - ✅ **Config-Driven**: YAML configuration for all parameters
 - ✅ **Production-Ready**: Logging, validation, error handling, type hints
@@ -34,30 +27,19 @@ This project builds a trading agent that learns optimal trading strategies for B
 
 ```
 RL/
-├── .github/                    # GitHub Actions CI/CD
-│   └── workflows/             # Automated workflows
-│       ├── tests.yml          # Pytest automation
-│       └── lint.yml           # Code quality checks
 ├── configs/                    # Configuration files
 │   ├── env.yaml               # Environment parameters
 │   ├── training.yaml          # Training hyperparameters
 │   └── features.yaml          # Feature engineering settings
 ├── data/                      # Market data (CSV files)
-│   └── sample_btcusdt_1h.csv  # Pre-generated sample data
-├── notebooks/                 # Jupyter tutorials
-│   └── tutorial.ipynb         # Interactive tutorial
 ├── ckpts/                     # Model checkpoints
 ├── artifacts/                 # Training artifacts and logs
 ├── data_manager.py            # Data loading and preprocessing
 ├── trading_env.py             # Gymnasium trading environment
 ├── train.py                   # Training script
 ├── evaluate.py                # Evaluation and backtesting
-├── fetch_data.py              # Binance data fetcher
-├── generate_sample_data.py    # Sample data generator
-├── quickstart.py              # Automated demo/full pipeline
 ├── config_validator.py        # Configuration validation
 ├── test_data_manager_pytest.py # pytest test suite
-├── .env.example               # API credentials template
 ├── requirements.txt           # Python dependencies
 └── README.md                  # This file
 ```
@@ -437,142 +419,6 @@ pytest -v
 # Run with coverage
 pytest --cov --cov-report=html
 ```
-
----
-
-## 📓 Interactive Jupyter Tutorial
-
-Want to learn the system interactively? We provide a comprehensive Jupyter notebook tutorial!
-
-### Setup Jupyter
-```bash
-# Install Jupyter (already in requirements.txt)
-pip install -r requirements.txt
-
-# Launch Jupyter
-jupyter notebook
-```
-
-### Open Tutorial
-Navigate to `notebooks/tutorial.ipynb` in the Jupyter interface.
-
-### What's Covered
-
-The tutorial includes 4 interactive parts:
-
-**Part 1: Data Loading & Exploration**
-- Load and inspect sample BTC data
-- Visualize price action and candlestick patterns
-- Explore technical indicators (RSI, MACD, Bollinger Bands)
-
-**Part 2: Trading Environment**
-- Understand the Gymnasium trading environment
-- Test with random actions
-- Observe state space and action space
-
-**Part 3: Train RL Agent (Quick Demo)**
-- Train a PPO agent (2000 timesteps, ~1 minute)
-- Monitor training progress
-- Save the trained model
-
-**Part 4: Evaluation & Results**
-- Evaluate trained agent
-- Compare with Buy & Hold strategy
-- Visualize portfolio performance
-
-### Why Use the Notebook?
-
-- 🎓 **Learning**: Perfect for understanding the system step-by-step
-- 🔬 **Experimentation**: Modify code cells and see results immediately
-- 📊 **Visualization**: Interactive plots and charts
-- 🚀 **Quick Testing**: Run experiments without command-line hassle
-
-### Example Notebook Usage
-
-```bash
-# 1. Install dependencies
-pip install -r requirements.txt
-
-# 2. Launch Jupyter
-jupyter notebook
-
-# 3. Open notebooks/tutorial.ipynb
-
-# 4. Run all cells (Cell > Run All)
-```
-
-The notebook generates sample data automatically, so you can start learning immediately without any API keys!
-
----
-
-## 🔄 Continuous Integration (CI/CD)
-
-This project includes automated CI/CD pipelines using GitHub Actions.
-
-### Automated Workflows
-
-#### 1. **Tests Workflow** (`.github/workflows/tests.yml`)
-
-Runs on every push and pull request to ensure code quality:
-
-- ✅ Tests on Python 3.9, 3.10, and 3.11
-- ✅ Runs full pytest suite with coverage
-- ✅ Uploads coverage reports to Codecov
-- ✅ Caches pip packages for faster builds
-
-**Triggered on:**
-- Push to `main`, `master`, or `claude/**` branches
-- Pull requests to `main` or `master`
-
-#### 2. **Code Quality Workflow** (`.github/workflows/lint.yml`)
-
-Enforces code quality standards:
-
-- ✅ **flake8**: Catches syntax errors and undefined names
-- ✅ **black**: Checks code formatting
-- ✅ **isort**: Validates import sorting
-- ✅ **mypy**: Type checking (optional, non-blocking)
-
-**Triggered on:**
-- Push to `main`, `master`, or `claude/**` branches
-- Pull requests to `main` or `master`
-
-### Viewing CI Results
-
-Check the status badges at the top of this README:
-- 🟢 Green badge = All checks passed
-- 🔴 Red badge = Some checks failed
-
-Click on badges to view detailed logs.
-
-### Running CI Checks Locally
-
-Before pushing, you can run the same checks locally:
-
-```bash
-# Install lint tools
-pip install flake8 black isort mypy
-
-# Run flake8 (syntax errors)
-flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv,env
-
-# Check formatting with black
-black --check --diff . --exclude='/(\.git|\.venv|venv|env)/'
-
-# Check import sorting
-isort --check-only --diff . --skip-gitignore
-
-# Run tests with coverage
-pytest -v --cov=. --cov-report=term-missing
-```
-
-### CI/CD Benefits
-
-- 🛡️ **Quality Assurance**: Catches bugs before they reach production
-- 🤖 **Automation**: No manual testing needed
-- 📊 **Coverage Tracking**: Monitor test coverage over time
-- 🚀 **Confidence**: Deploy knowing all tests pass
-- 👥 **Collaboration**: Ensures all contributors follow standards
 
 ---
 
